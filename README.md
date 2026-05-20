@@ -6,6 +6,17 @@ Written in C using POSIX TCP sockets. A single-threaded server uses `select()` t
 
 **[Live Demo →](https://halkhoori2000.github.io/TCP-Chat-Server/)**
 
+## Use Cases
+- Terminal-based team communication for development environments or server rooms with no GUI
+- Backend messaging layer for multiplayer games and applications where reliability matters more than low latency
+- IoT device command and telemetry channels serving a small number of known clients on a local network
+- Teaching platform for network programming — demonstrates core socket, multiplexing, and protocol concepts without the complexity of threading
+
+## Challenges
+- **Partial reads**: TCP is a stream protocol, not a message protocol — a single send() from a client may arrive as multiple recv() calls; without message framing, a broadcast can be split mid-transmission, requiring buffer management to reassemble complete messages reliably
+- **Broken connection detection**: a client that crashes without closing its socket does not trigger a clean disconnect — recv() returning 0 or -1 must be detected and the FD removed from the master set immediately, or select() will continue signalling on the dead socket in an infinite loop
+- **FD_SET bookkeeping**: select() modifies the fd_set in place on every call, requiring the master set to be copied to a working set before each select(); failing to remove a disconnected client causes repeated false-positive signals and prevents new clients from connecting once the FD limit is reached
+
 ---
 
 ## Features
