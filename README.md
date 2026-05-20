@@ -1,6 +1,8 @@
 # TCP-Chat-Server — C Multi-Client TCP Chat Server
 
-A multi-client terminal chat server written in C using POSIX TCP sockets and `select()`-based I/O multiplexing. Supports up to 20 concurrent clients with unique username enforcement and real-time broadcast messaging.
+A chat server that lets multiple people message each other in real time from a terminal. Anyone can connect, pick a username, and send messages that are instantly broadcast to everyone else. The server handles up to 20 simultaneous users without spawning extra processes or threads.
+
+Written in C using POSIX TCP sockets. A single-threaded server uses `select()` to monitor all connected client sockets and stdin simultaneously, replacing the naive fork-per-client model. Enforces username uniqueness on connection, broadcasts messages with the sender prefix to all other file descriptors, and cleans up the FD set cleanly on disconnect.
 
 **[Live Demo →](https://halkhoori2000.github.io/TCP-Chat-Server/)**
 
