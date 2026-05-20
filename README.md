@@ -1,8 +1,8 @@
-# Chat App — C TCP Multi-Client Chat Server
+# TCP-Chat-Server — C Multi-Client TCP Chat Server
 
 A multi-client terminal chat server written in C using POSIX TCP sockets and `select()`-based I/O multiplexing. Supports up to 20 concurrent clients with unique username enforcement and real-time broadcast messaging.
 
-**[Live Demo →](https://halkhoori2000.github.io/Chat-App/)**
+**[Live Demo →](https://halkhoori2000.github.io/TCP-Chat-Server/)**
 
 ---
 
@@ -64,8 +64,8 @@ The client also uses `select()` to monitor both stdin (user input) and the socke
 
 ```bash
 # Clone
-git clone https://github.com/Halkhoori2000/Chat-App.git
-cd Chat-App/src
+git clone https://github.com/Halkhoori2000/TCP-Chat-Server.git
+cd TCP-Chat-Server/src
 
 # Compile
 gcc -o server server.c
@@ -94,7 +94,7 @@ gcc -o client client.c
 ## Project Structure
 
 ```
-Chat-App/
+TCP-Chat-Server/
 ├── src/
 │   ├── server.c    ← TCP server with select() loop, username mgmt, broadcast
 │   └── client.c    ← TCP client with select() loop for stdin + socket
