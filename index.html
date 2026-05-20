@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chat App — C TCP Multi-Client Server</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --border: #30363d;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --green: #3fb950;
+      --cyan: #58a6ff;
+      --yellow: #d29922;
+      --red: #f85149;
+      --purple: #bc8cff;
+      --mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      line-height: 1.6;
+    }
+
+    a { color: var(--cyan); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* ── Header ── */
+    .header {
+      border-bottom: 1px solid var(--border);
+      padding: 1.5rem 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+    .header-left h1 { font-size: 1.4rem; font-weight: 700; }
+    .header-left .sub { color: var(--muted); font-size: 0.875rem; margin-top: 0.2rem; }
+    .header-right { display: flex; gap: 0.75rem; align-items: center; }
+    .btn {
+      padding: 0.45rem 1rem;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .btn:hover { border-color: var(--cyan); background: #1c2128; }
+    .btn-primary { background: var(--green); color: #0d1117; border-color: var(--green); }
+    .btn-primary:hover { background: #46d160; }
+
+    /* ── Layout ── */
+    .container { max-width: 1100px; margin: 0 auto; padding: 2rem; }
+
+    /* ── Badges ── */
+    .badges { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 2rem; }
+    .badge {
+      padding: 0.25rem 0.65rem;
+      border-radius: 20px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      font-family: var(--mono);
+    }
+    .badge-lang  { background: #1c2128; border: 1px solid #444; color: #d29922; }
+    .badge-net   { background: #1c2128; border: 1px solid #444; color: #58a6ff; }
+    .badge-model { background: #1c2128; border: 1px solid #444; color: #bc8cff; }
+
+    /* ── Section heading ── */
+    .section-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 1rem;
+      font-family: var(--mono);
+    }
+
+    /* ── Feature cards ── */
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2.5rem;
+    }
+    .feat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem 1.1rem;
+    }
+    .feat-card h3 { font-size: 0.92rem; font-weight: 600; margin-bottom: 0.35rem; }
+    .feat-card p  { font-size: 0.82rem; color: var(--muted); line-height: 1.5; }
+    .feat-icon { font-size: 1.3rem; margin-bottom: 0.4rem; }
+
+    /* ── Architecture diagram ── */
+    .arch-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin-bottom: 2.5rem;
+      overflow-x: auto;
+    }
+    .arch-box pre {
+      font-family: var(--mono);
+      font-size: 0.82rem;
+      color: var(--green);
+      line-height: 1.6;
+      white-space: pre;
+    }
+
+    /* ── Terminal demo ── */
+    .demo-section { margin-bottom: 2.5rem; }
+    .demo-label {
+      font-family: var(--mono);
+      font-size: 0.82rem;
+      color: var(--muted);
+      margin-bottom: 0.5rem;
+    }
+    .terminals-wrap {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+    @media (max-width: 780px) {
+      .terminals-wrap { grid-template-columns: 1fr; }
+    }
+    .terminal {
+      background: #0d1117;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .term-bar {
+      background: #1c2128;
+      border-bottom: 1px solid var(--border);
+      padding: 0.4rem 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .term-dot { width: 10px; height: 10px; border-radius: 50%; }
+    .dot-red    { background: #f85149; }
+    .dot-yellow { background: #d29922; }
+    .dot-green  { background: #3fb950; }
+    .term-title { font-family: var(--mono); font-size: 0.72rem; color: var(--muted); margin-left: 0.25rem; }
+    .term-body {
+      padding: 0.75rem;
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      min-height: 220px;
+      line-height: 1.7;
+    }
+    .t-green  { color: var(--green); }
+    .t-cyan   { color: var(--cyan); }
+    .t-yellow { color: var(--yellow); }
+    .t-muted  { color: var(--muted); }
+    .t-red    { color: var(--red); }
+    .t-prompt::before { content: '$ '; color: var(--green); }
+
+    /* ── Interactive demo controls ── */
+    .demo-controls {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      margin-bottom: 1.5rem;
+    }
+    .step-btn {
+      padding: 0.4rem 0.9rem;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-family: var(--mono);
+      cursor: pointer;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      transition: all 0.15s;
+    }
+    .step-btn:hover { border-color: var(--cyan); }
+    .step-btn.active { border-color: var(--green); color: var(--green); }
+
+    /* ── Build instructions ── */
+    .code-block {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem 1.25rem;
+      margin-bottom: 1rem;
+      overflow-x: auto;
+    }
+    .code-block pre {
+      font-family: var(--mono);
+      font-size: 0.82rem;
+      color: var(--green);
+      line-height: 1.7;
+    }
+    .code-block .comment { color: var(--muted); }
+    .code-block .cmd     { color: var(--cyan); }
+    .note {
+      background: #161b2280;
+      border: 1px solid #30363d;
+      border-left: 3px solid var(--yellow);
+      border-radius: 4px;
+      padding: 0.7rem 1rem;
+      font-size: 0.82rem;
+      color: var(--muted);
+      margin-bottom: 2rem;
+    }
+
+    /* ── Source viewer ── */
+    .source-tabs { display: flex; gap: 0; margin-bottom: 0; border-bottom: 1px solid var(--border); }
+    .tab-btn {
+      padding: 0.5rem 1rem;
+      font-family: var(--mono);
+      font-size: 0.82rem;
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      cursor: pointer;
+      color: var(--muted);
+      transition: all 0.15s;
+    }
+    .tab-btn.active { color: var(--text); border-bottom-color: var(--cyan); }
+    .tab-btn:hover:not(.active) { color: var(--text); }
+    .source-panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-top: none;
+      border-radius: 0 0 8px 8px;
+      padding: 1rem 1.25rem;
+      overflow-x: auto;
+      margin-bottom: 2.5rem;
+    }
+    .source-panel pre {
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      line-height: 1.7;
+      white-space: pre;
+    }
+    .kw   { color: #ff7b72; }
+    .ty   { color: #ffa657; }
+    .fn   { color: #d2a8ff; }
+    .str  { color: #a5d6ff; }
+    .num  { color: #79c0ff; }
+    .cmt  { color: #8b949e; font-style: italic; }
+    .pp   { color: #ff7b72; }
+
+    /* ── Footer ── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 1.5rem 2rem;
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.82rem;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ─────────────────────────────────── -->
+<header class="header">
+  <div class="header-left">
+    <h1>Chat App — C TCP Multi-Client Server</h1>
+    <div class="sub">CMPSC 311 · Systems Programming · Penn State · 2022</div>
+  </div>
+  <div class="header-right">
+    <a href="https://github.com/Halkhoori2000/Chat-App" class="btn" target="_blank" rel="noopener">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+      GitHub
+    </a>
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- Badges -->
+  <div class="badges">
+    <span class="badge badge-lang">C · C99</span>
+    <span class="badge badge-net">TCP Sockets</span>
+    <span class="badge badge-model">select() I/O Multiplexing</span>
+    <span class="badge badge-lang">POSIX</span>
+    <span class="badge badge-net">Linux / Ubuntu</span>
+  </div>
+
+  <!-- Features -->
+  <div class="section-title">// features</div>
+  <div class="features-grid">
+    <div class="feat-card">
+      <div class="feat-icon">⚡</div>
+      <h3>select() Multiplexing</h3>
+      <p>Single-threaded server monitors all client sockets and the server socket in one <code>select()</code> call — no thread-per-client, no fork overhead.</p>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">👥</div>
+      <h3>Up to 20 Clients</h3>
+      <p>Supports 20 concurrent connections via a fixed-size file descriptor table. Each client gets a username-keyed slot.</p>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">🔑</div>
+      <h3>Unique Usernames</h3>
+      <p>On connect, server prompts for a username and re-prompts until a unique one is provided — no two active users can share a name.</p>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">📡</div>
+      <h3>Broadcast Messaging</h3>
+      <p>Every message is forwarded to all other connected clients with the sender's username prepended. Sender does not receive their own message.</p>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">🔌</div>
+      <h3>Clean Disconnect</h3>
+      <p>Typing <code>exit</code> removes the client from the FD set, compacts the descriptor array, and logs the disconnect on the server terminal.</p>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">🖥️</div>
+      <h3>Responsive Client</h3>
+      <p>Client also uses <code>select()</code> to monitor stdin and the socket simultaneously — prints incoming messages without interrupting user input.</p>
+    </div>
+  </div>
+
+  <!-- Architecture -->
+  <div class="section-title">// architecture</div>
+  <div class="arch-box">
+    <pre>
+  ┌─────────────────────────────────────────────────────────────┐
+  │                        SERVER                               │
+  │   select() loop — monitored FDs:                            │
+  │     serverSocket   ←  new TCP connections (accept)          │
+  │     fileDesc[0..N] ←  messages from connected clients       │
+  │                                                             │
+  │   On new connection:                                        │
+  │     accept() → send "Enter username:" → recv username       │
+  │     validate uniqueness → store in userNames[] + fileDesc[] │
+  │                                                             │
+  │   On message received:                                      │
+  │     recv() → prepend "username: " → broadcast to all others │
+  │     if message == "exit" → FD_CLR + compact + close         │
+  └──────────────────────┬──────────────────────────────────────┘
+                         │  TCP · port 1026
+          ┌──────────────┴──────────────┐
+          │                             │
+   ┌──────▼──────┐               ┌──────▼──────┐
+   │  Client A   │     . . .     │  Client N   │   (up to 20)
+   │  select():  │               │  select():  │
+   │  stdin  ──► send()          │  stdin  ──► send()
+   │  socket ──► print msg       │  socket ──► print msg
+   └─────────────┘               └─────────────┘
+    </pre>
+  </div>
+
+  <!-- Interactive Terminal Demo -->
+  <div class="demo-section">
+    <div class="section-title">// interactive demo</div>
+    <div class="demo-controls">
+      <button class="step-btn active" onclick="setStep(0)">① Start Server</button>
+      <button class="step-btn" onclick="setStep(1)">② Alice Connects</button>
+      <button class="step-btn" onclick="setStep(2)">③ Bob Connects</button>
+      <button class="step-btn" onclick="setStep(3)">④ Alice Messages</button>
+      <button class="step-btn" onclick="setStep(4)">⑤ Bob Replies</button>
+      <button class="step-btn" onclick="setStep(5)">⑥ Alice Exits</button>
+    </div>
+    <div class="terminals-wrap">
+      <!-- Server terminal -->
+      <div class="terminal">
+        <div class="term-bar">
+          <div class="term-dot dot-red"></div>
+          <div class="term-dot dot-yellow"></div>
+          <div class="term-dot dot-green"></div>
+          <span class="term-title">server — bash</span>
+        </div>
+        <div class="term-body" id="serverTerm"></div>
+      </div>
+      <!-- Client A terminal -->
+      <div class="terminal">
+        <div class="term-bar">
+          <div class="term-dot dot-red"></div>
+          <div class="term-dot dot-yellow"></div>
+          <div class="term-dot dot-green"></div>
+          <span class="term-title">client: alice — bash</span>
+        </div>
+        <div class="term-body" id="aliceTerm"></div>
+      </div>
+      <!-- Client B terminal -->
+      <div class="terminal">
+        <div class="term-bar">
+          <div class="term-dot dot-red"></div>
+          <div class="term-dot dot-yellow"></div>
+          <div class="term-dot dot-green"></div>
+          <span class="term-title">client: bob — bash</span>
+        </div>
+        <div class="term-body" id="bobTerm"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Build Instructions -->
+  <div class="section-title">// build &amp; run</div>
+  <div class="code-block">
+    <pre><span class="comment"># Clone the repository</span>
+<span class="cmd">git clone https://github.com/Halkhoori2000/Chat-App.git</span>
+<span class="cmd">cd Chat-App/src</span>
+
+<span class="comment"># Compile (requires GCC on Linux)</span>
+<span class="cmd">gcc -o server server.c</span>
+<span class="cmd">gcc -o client client.c</span>
+
+<span class="comment"># Terminal 1 — start the server</span>
+<span class="cmd">./server</span>
+<span class="comment"># Listening...</span>
+
+<span class="comment"># Terminal 2 — connect as alice</span>
+<span class="cmd">./client</span>
+<span class="comment"># Enter username: alice</span>
+
+<span class="comment"># Terminal 3 — connect as bob</span>
+<span class="cmd">./client</span>
+<span class="comment"># Enter username: bob</span></pre>
+  </div>
+  <div class="note">
+    <strong>Note:</strong> The source uses hardcoded IP <code>10.0.2.15</code> (VirtualBox NAT default).
+    To run locally, replace it with <code>127.0.0.1</code> in both <code>client.c</code> and <code>server.c</code>.
+  </div>
+
+  <!-- Source Viewer -->
+  <div class="section-title">// source</div>
+  <div class="source-tabs">
+    <button class="tab-btn active" onclick="showTab('server')">server.c</button>
+    <button class="tab-btn" onclick="showTab('client')">client.c</button>
+  </div>
+  <div class="source-panel">
+    <pre id="sourceView"></pre>
+  </div>
+
+</div>
+
+<!-- Footer -->
+<footer>
+  Chat App · C TCP Sockets · CMPSC 311 · Penn State 2022 ·
+  <a href="https://github.com/Halkhoori2000/Chat-App" target="_blank" rel="noopener">github.com/Halkhoori2000/Chat-App</a>
+</footer>
+
+<script>
+/* ── Terminal demo steps ─────────────────────────── */
+const steps = [
+  {
+    server: ['<span class="t-prompt">./server</span>', '<span class="t-green">Listening...</span>'],
+    alice:  [],
+    bob:    []
+  },
+  {
+    server: ['<span class="t-prompt">./server</span>', '<span class="t-green">Listening...</span>', '<span class="t-cyan">New user added: alice</span>'],
+    alice:  ['<span class="t-prompt">./client</span>', '<span class="t-yellow">Enter username: </span><span class="t-muted">alice</span>', '<span class="t-green">Connected. Start chatting!</span>'],
+    bob:    []
+  },
+  {
+    server: ['<span class="t-prompt">./server</span>', '<span class="t-green">Listening...</span>', '<span class="t-cyan">New user added: alice</span>', '<span class="t-cyan">New user added: bob</span>'],
+    alice:  ['<span class="t-prompt">./client</span>', '<span class="t-yellow">Enter username: </span><span class="t-muted">alice</span>', '<span class="t-green">Connected. Start chatting!</span>'],
+    bob:    ['<span class="t-prompt">./client</span>', '<span class="t-yellow">Enter username: </span><span class="t-muted">bob</span>', '<span class="t-green">Connected. Start chatting!</span>']
+  },
+  {
+    server: ['<span class="t-prompt">./server</span>', '<span class="t-green">Listening...</span>', '<span class="t-cyan">New user added: alice</span>', '<span class="t-cyan">New user added: bob</span>', '<span class="t-muted">alice sent message: hello bob!</span>', '<span class="t-muted">Message Delivered</span>'],
+    alice:  ['<span class="t-prompt">./client</span>', '<span class="t-yellow">Enter username: </span><span class="t-muted">alice</span>', '<span class="t-green">Connected. Start chatting!</span>', '<span class="t-muted">hello bob!</span>'],
+    bob:    ['<span class="t-prompt">./client</span>', '<span class="t-yellow">Enter username: </span><span class="t-muted">bob</span>', '<span class="t-green">Connected. Start chatting!</span>', '<span class="t-cyan">aliceMessage : hello bob!</span>']
+  },
+  {
+    server: ['<span class="t-prompt">./server</span>', '<span class="t-green">Listening...</span>', '<span class="t-cyan">New user added: alice</span>', '<span class="t-cyan">New user added: bob</span>', '<span class="t-muted">alice sent message: hello bob!</span>', '<span class="t-muted">Message Delivered</span>', '<span class="t-muted">bob sent message: hey alice!</span>', '<span class="t-muted">Message Delivered</span>'],
+    alice:  ['<span class="t-prompt">./client</span>', '<span class="t-yellow">Enter username: </span><span class="t-muted">alice</span>', '<span class="t-green">Connected. Start chatting!</span>', '<span class="t-muted">hello bob!</span>', '<span class="t-cyan">bobMessage : hey alice!</span>'],
+    bob:    ['<span class="t-prompt">./client</span>', '<span class="t-yellow">Enter username: </span><span class="t-muted">bob</span>', '<span class="t-green">Connected. Start chatting!</span>', '<span class="t-cyan">aliceMessage : hello bob!</span>', '<span class="t-muted">hey alice!</span>']
+  },
+  {
+    server: ['<span class="t-prompt">./server</span>', '<span class="t-green">Listening...</span>', '<span class="t-cyan">New user added: alice</span>', '<span class="t-cyan">New user added: bob</span>', '<span class="t-muted">alice sent message: hello bob!</span>', '<span class="t-muted">Message Delivered</span>', '<span class="t-muted">bob sent message: hey alice!</span>', '<span class="t-muted">Message Delivered</span>', '<span class="t-red">alice disconnected</span>'],
+    alice:  ['<span class="t-prompt">./client</span>', '<span class="t-yellow">Enter username: </span><span class="t-muted">alice</span>', '<span class="t-green">Connected. Start chatting!</span>', '<span class="t-muted">hello bob!</span>', '<span class="t-cyan">bobMessage : hey alice!</span>', '<span class="t-muted">exit</span>', '<span class="t-red">Connection closed.</span>'],
+    bob:    ['<span class="t-prompt">./client</span>', '<span class="t-yellow">Enter username: </span><span class="t-muted">bob</span>', '<span class="t-green">Connected. Start chatting!</span>', '<span class="t-cyan">aliceMessage : hello bob!</span>', '<span class="t-muted">hey alice!</span>']
+  }
+];
+
+let currentStep = 0;
+
+function setStep(n) {
+  currentStep = n;
+  document.querySelectorAll('.step-btn').forEach((b, i) => b.classList.toggle('active', i === n));
+  const s = steps[n];
+  document.getElementById('serverTerm').innerHTML = s.server.map(l => `<div>${l}</div>`).join('');
+  document.getElementById('aliceTerm').innerHTML  = s.alice.map(l  => `<div>${l}</div>`).join('');
+  document.getElementById('bobTerm').innerHTML    = s.bob.map(l    => `<div>${l}</div>`).join('');
+}
+
+setStep(0);
+
+/* ── Source viewer ───────────────────────────────── */
+const sources = {
+  server: `<span class="cmt">// Server — TCP multi-client chat with select() multiplexing</span>
+
+<span class="pp">#include</span> <span class="str">&lt;stdio.h&gt;</span>
+<span class="pp">#include</span> <span class="str">&lt;stdlib.h&gt;</span>
+<span class="pp">#include</span> <span class="str">&lt;string.h&gt;</span>
+<span class="pp">#include</span> <span class="str">&lt;unistd.h&gt;</span>
+<span class="pp">#include</span> <span class="str">&lt;sys/socket.h&gt;</span>
+<span class="pp">#include</span> <span class="str">&lt;sys/select.h&gt;</span>
+<span class="pp">#include</span> <span class="str">&lt;netinet/in.h&gt;</span>
+<span class="pp">#include</span> <span class="str">&lt;arpa/inet.h&gt;</span>
+
+<span class="pp">#define</span> <span class="num">PORT</span>      <span class="num">1026</span>
+<span class="pp">#define</span> <span class="num">MAX_USERS</span> <span class="num">20</span>
+
+<span class="kw">int</span> <span class="fn">main</span>() {
+    <span class="kw">int</span>  fileDesc[<span class="num">20</span>];
+    <span class="kw">char</span> *message   = calloc(<span class="num">1024</span>, <span class="kw">sizeof</span>(<span class="kw">char</span>));
+    <span class="kw">char</span> *userNames[<span class="num">20</span>];
+    <span class="kw">int</span>  fdFlag = <span class="num">0</span>;
+
+    <span class="cmt">// ... socket / bind / listen setup ...</span>
+
+    fd_set allFDS;
+    FD_ZERO(&amp;allFDS);
+    FD_SET(serverSocket, &amp;allFDS);
+    <span class="kw">int</span> maxFD = serverSocket;
+
+    <span class="kw">while</span>(<span class="num">1</span>) {
+        fd_set senderFD = allFDS;
+        select(maxFD+<span class="num">1</span>, &amp;senderFD, NULL, NULL, NULL);
+
+        <span class="kw">if</span> (FD_ISSET(serverSocket, &amp;senderFD)) {
+            <span class="cmt">// New connection: accept, prompt username, enforce unique</span>
+            clientFD = accept(serverSocket, ...);
+            FD_SET(clientFD, &amp;allFDS);
+            send(clientFD, <span class="str">"Enter username: "</span>, ...);
+            recv(clientFD, promptName, <span class="num">1024</span>, <span class="num">0</span>);
+            <span class="cmt">// ... uniqueness check loop ...</span>
+        } <span class="kw">else</span> {
+            <span class="cmt">// Existing client sent a message → broadcast</span>
+            <span class="kw">for</span> (<span class="kw">int</span> j = <span class="num">0</span>; j &lt; fdFlag; j++) {
+                <span class="kw">if</span> (FD_ISSET(fileDesc[j], &amp;senderFD)) {
+                    recv(fileDesc[j], message, <span class="num">1024</span>, <span class="num">0</span>);
+                    <span class="kw">if</span> (strncmp(<span class="str">"exit"</span>, message, <span class="num">4</span>) == <span class="num">0</span>) {
+                        FD_CLR(fileDesc[j], &amp;allFDS); fdFlag--;
+                    } <span class="kw">else</span> {
+                        <span class="kw">for</span> (<span class="kw">int</span> k = <span class="num">0</span>; k &lt; fdFlag; k++)
+                            <span class="kw">if</span> (fileDesc[k] != fileDesc[j])
+                                send(fileDesc[k], temp, strlen(temp), <span class="num">0</span>);
+                    }
+                }
+            }
+        }
+    }
+}`,
+  client: `<span class="cmt">// Client — select()-based stdin + socket multiplexing</span>
+
+<span class="pp">#include</span> <span class="str">&lt;stdio.h&gt;</span>
+<span class="pp">#include</span> <span class="str">&lt;sys/select.h&gt;</span>
+<span class="pp">#include</span> <span class="str">&lt;sys/socket.h&gt;</span>
+<span class="pp">#include</span> <span class="str">&lt;netinet/in.h&gt;</span>
+
+<span class="pp">#define</span> <span class="num">PORT</span> <span class="num">1026</span>
+
+<span class="kw">int</span> <span class="fn">main</span>() {
+    <span class="kw">int</span> inputFD = <span class="num">0</span>;  <span class="cmt">// stdin</span>
+    <span class="kw">char</span> *sendMsg    = calloc(<span class="num">1024</span>, <span class="kw">sizeof</span>(<span class="kw">char</span>));
+    <span class="kw">char</span> *recvMsg    = calloc(<span class="num">1024</span>, <span class="kw">sizeof</span>(<span class="kw">char</span>));
+
+    <span class="cmt">// ... socket setup / connect to server ...</span>
+
+    fd_set allFDS;
+    <span class="kw">while</span>(<span class="num">1</span>) {
+        FD_ZERO(&amp;allFDS);
+        FD_SET(inputFD,    &amp;allFDS);   <span class="cmt">// watch stdin</span>
+        FD_SET(clientSocket, &amp;allFDS); <span class="cmt">// watch socket</span>
+
+        select(clientSocket+<span class="num">1</span>, &amp;allFDS, NULL, NULL, NULL);
+
+        <span class="kw">if</span> (FD_ISSET(inputFD, &amp;allFDS)) {
+            <span class="cmt">// User typed something — send to server</span>
+            fgets(sendMsg, <span class="num">1024</span>, stdin);
+            send(clientSocket, sendMsg, strlen(sendMsg), <span class="num">0</span>);
+        } <span class="kw">else if</span> (FD_ISSET(clientSocket, &amp;allFDS)) {
+            <span class="cmt">// Server sent a message — print it</span>
+            recv(clientSocket, recvMsg, <span class="num">1024</span>, <span class="num">0</span>);
+            <span class="kw">if</span> (strncmp(<span class="str">"exit"</span>, recvMsg, <span class="num">4</span>) == <span class="num">0</span>) exit(<span class="num">1</span>);
+            printf(<span class="str">"%s\n"</span>, recvMsg);
+        }
+    }
+}`
+};
+
+function showTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.textContent.startsWith(tab === 'server' ? 'server' : 'client')));
+  document.getElementById('sourceView').innerHTML = sources[tab];
+}
+
+showTab('server');
+</script>
+</body>
+</html>
