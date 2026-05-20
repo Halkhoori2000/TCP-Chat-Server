@@ -1,0 +1,8 @@
+# Compiled binaries
+server
+client
+*.o
+
+# OS
+.DS_Store
+Thumbs.db
